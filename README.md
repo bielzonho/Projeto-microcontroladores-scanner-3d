@@ -12,7 +12,7 @@ Desenvolvimento de um scanner 3D com microcontroladores para digitalização de 
 ![Diagrama de blocos 1](https://github.com/bielzonho/Projeto-microcontroladores-scanner-3d/blob/main/img/diagrama%20de%20blocos%20antigo.jpeg)
 
 ## Diagrama de blocos final para a base
-![Diagrama de blocos 2](https://github.com/bielzonho/Projeto-microcontroladores-scanner-3d/blob/main/img/Diagrama%20de%20blocos%20T1.png)
+![Diagrama de blocos 2](https://github.com/bielzonho/Projeto-microcontroladores-scanner-3d/blob/main/img/Diagrama%20de%20blocos%20T1%20rev.png)
 
 ## Demonstração (YouTube)
 [![demo](https://img.youtube.com/vi/T0Oqt0K6fJw/maxresdefault.jpg)](https://youtu.be/T0Oqt0K6fJw)
