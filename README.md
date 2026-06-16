@@ -14,6 +14,12 @@ Desenvolvimento de um scanner 3D com microcontroladores para digitalização de 
 ## Diagrama de blocos final para a base
 ![Diagrama de blocos 2](https://github.com/bielzonho/Projeto-microcontroladores-scanner-3d/blob/main/img/Diagrama%20de%20blocos%20T1%20rev.png)
 
+## Fluxo
+1. Botão 1 pressionado → Servo eleva a haste, display OLED indica a altura atual
+2. Botão 2 pressionado → Servo rebaixa a haste, display OLED indica a altura atual
+3. Botão 1 e botão 2 pressionados → Servo trava sua posição e o motor de passo realiza 2 rotações completas, display OLED indica o progresso 
+4. Motor de passo para → Display OLED mostra tela DONE; Sistema encerra
+
 ## Demonstração (YouTube)
 [![demo](https://img.youtube.com/vi/T0Oqt0K6fJw/maxresdefault.jpg)](https://youtu.be/T0Oqt0K6fJw)
 
