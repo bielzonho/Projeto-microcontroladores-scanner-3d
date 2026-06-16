@@ -44,5 +44,5 @@ Guilherme Gonsales de Sá - 23.00882-2
 
 Thiago Espigado Miras - 22.01836-0
 
-### Créditos
+### Créditos:
 Drivers para o display OLED: https://github.com/micropython/micropython-lib/blob/master/micropython/drivers/display/ssd1306/ssd1306.py
