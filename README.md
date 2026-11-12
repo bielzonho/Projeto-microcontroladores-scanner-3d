@@ -1,11 +1,8 @@
 # EEN251 - Microcontroladores e Sistemas Embarcados
----
 
 # Projeto Scanner 3D
 
 Desenvolvimento de um scanner 3D com microcontroladores para digitalização de objetos físicos.
-
----
 
 ### Como cada parte está estruturada:
 
@@ -41,7 +38,7 @@ Você deve ver algo como `Python 3.12.1`.
 
 ### 1.2 Instale as bibliotecas que usamos
 
-Digite isto no terminal (em uma única linha):
+Digite isto no terminal:
 
 ```
 python -m pip install numpy matplotlib opencv-python
@@ -1157,8 +1154,8 @@ python pc_client.py --url https://palavras-aleatorias.trycloudflare.com --token 
 
 > **IMPORTANTE:** Mantenha apenas **uma cópia** de cada arquivo na mesma pasta (apague duplicatas como `capture (1).py`). Arquivos gerados durante o uso (`.obj`, `.stl`, `.png`, `camera_map.json`, `__pycache__`) podem ser removidos livremente quando necessário.
 
----
 # Integrantes:
+
 Joaquim Anderlini Alves da Cunha - 22.00536-6
 
 Gabriel Giardino Sprotte - 23.00964-0
@@ -1170,4 +1167,5 @@ Guilherme Gonsales de Sá - 23.00882-2
 Thiago Espigado Miras - 22.01836-0
 
 ### Créditos:
+
 Drivers para o display OLED: https://github.com/micropython/micropython-lib/blob/master/micropython/drivers/display/ssd1306/ssd1306.py
