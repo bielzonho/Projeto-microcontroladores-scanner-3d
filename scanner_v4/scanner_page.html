@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scanner 3D</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --ink: #1c2330; --muted: #5d6879; --line: #d9dde4;
+    --accent: #0b6bcb; --accent-ink: #ffffff; --ok: #1a7f4b; --bad: #b3261e; --warn: #8a5a00;
+    --view: #e9edf3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161d; --card: #1b212b; --ink: #e8ecf2; --muted: #9aa5b5; --line: #2f3846;
+      --accent: #5aa7ff; --accent-ink: #08213f; --ok: #55c68a; --bad: #ff8a80; --warn: #e5b255;
+      --view: #0f131a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 820px) { .grid { grid-template-columns: 340px 1fr; align-items: start; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card h2 { font-size: 1rem; margin: 0 0 12px; }
+  label { display: block; font-size: .875rem; color: var(--muted); margin: 10px 0 4px; }
+  input[type=text], input[type=password], input[type=number], select {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink); font: inherit; }
+  .check { display: flex; gap: 8px; align-items: center; margin: 10px 0 0; color: var(--ink); font-size: .95rem; }
+  .check input { width: 18px; height: 18px; }
+  .row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  button, a.btn { font: inherit; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); cursor: pointer; text-decoration: none; display: inline-block; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible, a.btn:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px; }
+  .state { font-weight: 600; font-size: 1.1rem; }
+  .state.done { color: var(--ok); } .state.error { color: var(--bad); } .state.stopped { color: var(--warn); }
+  progress { width: 100%; height: 14px; margin: 10px 0 6px; accent-color: var(--accent); }
+  .msg { color: var(--muted); font-size: .9rem; min-height: 1.3em; word-break: break-word; }
+  .msg.bad { color: var(--bad); }
+  #view { width: 100%; height: 420px; background: var(--view); border-radius: 10px; display: block;
+          touch-action: none; cursor: grab; }
+  #view:active { cursor: grabbing; }
+  .hint { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
+  .hidden { display: none !important; }
+  .small { font-size: .85rem; color: var(--muted); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .pair figure { margin: 0; } .pair img { width: 100%; border-radius: 8px; border: 1px solid var(--line); display: block; background: var(--view); }
+  .pair figcaption { font-size: .8rem; color: var(--muted); text-align: center; margin-top: 2px; }
+  pre.report { white-space: pre-wrap; word-break: break-word; font-size: .8rem; background: var(--bg);
+               border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 10px 0 0; }
+  .scan { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+          padding: 10px 0; border-top: 1px solid var(--line); }
+  .scan:first-child { border-top: 0; }
+  .scan .name { font-weight: 600; } .scan .info { color: var(--muted); font-size: .85rem; }
+  .scan .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .scan button { padding: 6px 12px; font-size: .9rem; }
+  button.danger { color: var(--bad); border-color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Scanner 3D</h1>
+  <p class="sub">Inicie um scan no Raspberry Pi, acompanhe o progresso e veja o modelo 3D aqui mesmo.</p>
+
+  <div class="grid">
+    <div style="display:grid; gap:16px; align-content:start;">
+    <section class="card" aria-labelledby="h-control">
+      <h2 id="h-control">Controle</h2>
+
+      <label for="token">Senha (token do servidor)</label>
+      <input id="token" type="password" autocomplete="off" placeholder="a senha que o servidor mostrou">
+
+      <label for="photos">Fotos em uma volta (3 a 360)</label>
+      <input id="photos" type="number" min="3" max="360" value="60">
+
+      <label class="check"><input id="reverse" type="checkbox"> Girar no sentido contrário</label>
+      <label class="check hidden" id="dry-box"><input id="dry" type="checkbox"> Modo de teste (falso, sem câmera, laser nem motor)</label>
+
+      <div class="row">
+        <button id="start" class="primary" type="button">Iniciar scan</button>
+        <button id="stop" type="button" disabled>Parar</button>
+      </div>
+      <p class="msg" id="formmsg" role="status"></p>
+    </section>
+
+    <section class="card" aria-labelledby="h-test">
+      <h2 id="h-test">Testes do equipamento</h2>
+      <p class="small" style="margin:0 0 4px;">Faça antes de escanear. O laser pisca 3 vezes: não olhe para o feixe.</p>
+      <div class="row" style="margin-top:8px;">
+        <button id="t-laser" type="button">Testar laser</button>
+        <button id="t-photo" type="button">Foto de teste</button>
+      </div>
+      <p class="msg" id="testmsg" role="status"></p>
+      <div id="testout" class="hidden">
+        <div class="pair">
+          <figure><img id="img-on" alt="Foto de teste com o laser ligado"><figcaption>Laser ligado</figcaption></figure>
+          <figure><img id="img-off" alt="Foto de teste com o laser desligado"><figcaption>Laser desligado</figcaption></figure>
+        </div>
+        <pre class="report" id="report"></pre>
+      </div>
+    </section>
+    </div>
+
+    <div style="display:grid; gap:16px;">
+      <section class="card" aria-labelledby="h-status">
+        <h2 id="h-status">Andamento</h2>
+        <div class="state" id="state" role="status">Aguardando conexão…</div>
+        <progress id="bar" max="1" value="0" aria-label="Progresso do scan"></progress>
+        <div class="msg" id="detail"></div>
+        <div class="msg" id="message"></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-model">
+        <h2 id="h-model">Modelo 3D</h2>
+        <canvas id="view" width="900" height="420" aria-label="Visualização 3D do modelo. Arraste para girar."></canvas>
+        <p class="hint" id="viewhint">O modelo aparece aqui quando o scan terminar. Arraste para girar, use a roda do mouse (ou dois dedos) para aproximar.</p>
+        <div class="row">
+          <a class="btn hidden" id="dl-model" href="#" download="modelo.obj">Baixar modelo (.obj)</a>
+          <button class="hidden" id="dl-stl" type="button">Baixar .stl (impressão 3D)</button>
+          <button class="hidden" id="dl-photos" type="button">Baixar fotos (.zip)</button>
+          <button class="hidden" id="spin" type="button">Pausar rotação</button>
+        </div>
+        <p class="small" id="dlmsg" role="status"></p>
+      </section>
+
+      <section class="card" aria-labelledby="h-old">
+        <h2 id="h-old">Scans anteriores</h2>
+        <p class="small" id="disk" style="margin-top:0;"></p>
+        <div id="scanlist"></div>
+        <div class="row" style="margin-top:8px;"><button id="refresh" type="button">Atualizar lista</button></div>
+        <p class="small" id="listmsg" role="status"></p>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const STATES = { idle: "Parado", scanning: "Escaneando", meshing: "Montando o modelo 3D no Pi",
+                 done: "Concluído", error: "Erro", stopped: "Interrompido",
+                 testing: "Testando o equipamento…" };
+
+// ---- remember the token for this tab only (works without it too) ----------
+try { $("token").value = sessionStorage.getItem("scanner-token") || ""; } catch (e) {}
+$("token").addEventListener("change", () => {
+  try { sessionStorage.setItem("scanner-token", $("token").value); } catch (e) {}
+  poll();
+});
+
+// ---- talking to the server -------------------------------------------------
+async function api(path, options = {}) {
+  const res = await fetch(path, Object.assign({ headers: { "X-Token": $("token").value.trim() } }, options));
+  return res;
+}
+async function jsonOrError(res) {
+  let body = {};
+  try { body = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error(body.error || ("erro " + res.status));
+  return body;
+}
+
+// ---- status polling --------------------------------------------------------
+let lastState = null, lastScan = null, loadedScan = null, viewScan = null, timer = null, lastKey = "";
+
+function showStatus(st) {
+  const s = st.state;
+  lastScan = st.scan || lastScan;
+  const el = $("state");
+  el.textContent = STATES[s] || s;
+  el.className = "state " + s;
+  const bar = $("bar");
+  if (s === "meshing") { bar.removeAttribute("value"); }
+  else { bar.max = Math.max(st.total, 1); bar.value = s === "done" ? Math.max(st.total, 1) : st.done; }
+  let detail = "";
+  if (s === "scanning") detail = `${st.done} de ${st.total} posições fotografadas`;
+  if (s === "meshing") detail = "Todas as fotos prontas. O Raspberry Pi está calculando o modelo…";
+  if (s === "done") detail = `${st.total} posições` + (st.mesh_seconds != null ? `; modelo montado no Pi em ${st.mesh_seconds} s` : "");
+  $("detail").textContent = detail;
+  const m = $("message");
+  m.textContent = st.message === "stopped on request" ? "Interrompido a pedido." : (st.message || "");
+  m.className = "msg" + (s === "error" ? " bad" : "");
+  const busy = s === "scanning" || s === "meshing" || s === "testing";
+  $("start").disabled = busy;
+  $("stop").disabled = !(s === "scanning" || s === "meshing");
+  $("t-laser").disabled = busy;
+  $("t-photo").disabled = busy;
+  const key = s + "|" + st.scan;
+  if (key !== lastKey) { lastKey = key; loadScans(); }
+  $("dry-box").classList.toggle("hidden", !st.allow_dry_run);
+  if (s === "done" && st.mesh_wanted && loadedScan !== st.scan) { loadedScan = st.scan; loadModel(st.scan); }
+  if (s === "scanning" || s === "meshing") {
+    loadedScan = null; viewScan = null;
+    for (const id of ["dl-model", "dl-stl", "dl-photos", "spin"]) $(id).classList.add("hidden");
+  }
+}
+
+async function poll() {
+  clearTimeout(timer);
+  let delay = 1500;
+  if (!$("token").value.trim()) {
+    $("state").textContent = "Digite a senha para conectar";
+    $("state").className = "state";
+    timer = setTimeout(poll, delay);
+    return;
+  }
+  try {
+    const res = await api("/status");
+    if (res.status === 401) {
+      $("state").textContent = "Senha incorreta ou ausente";
+      $("state").className = "state error";
+      delay = 4000;
+    } else {
+      const st = await jsonOrError(res);
+      showStatus(st);
+      if (st.state === "scanning" || st.state === "meshing") delay = 1000;
+      if (st.state === "testing") delay = 1000;
+    }
+  } catch (e) {
+    $("state").textContent = "Sem conexão com o Pi";
+    $("state").className = "state error";
+    $("message").textContent = String(e.message || e);
+    delay = 4000;
+  }
+  timer = setTimeout(poll, delay);
+}
+
+// ---- start / stop ----------------------------------------------------------
+$("start").addEventListener("click", async () => {
+  const fm = $("formmsg"); fm.textContent = ""; fm.className = "msg";
+  const body = { photos: parseInt($("photos").value, 10), platform: "uln2003",
+                 reverse: $("reverse").checked, mesh: true, dry_run: $("dry").checked };
+  try {
+    const res = await api("/start", { method: "POST", body: JSON.stringify(body) });
+    const ans = await jsonOrError(res);
+    fm.textContent = "Scan iniciado: " + ans.started;
+    poll();
+  } catch (e) { fm.textContent = e.message; fm.className = "msg bad"; }
+});
+$("stop").addEventListener("click", async () => {
+  try { await jsonOrError(await api("/stop", { method: "POST", body: "{}" })); poll(); }
+  catch (e) { $("formmsg").textContent = e.message; $("formmsg").className = "msg bad"; }
+});
+
+// ---- downloads (the token goes in a header, so we fetch and make a blob) ----
+function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+async function downloadPhotos(scan, msgEl) {
+  msgEl.textContent = "Baixando as fotos…";
+  try {
+    const res = await api("/download?scan=" + encodeURIComponent(scan));
+    if (!res.ok) throw new Error((await res.json()).error || "erro " + res.status);
+    saveBlob(await res.blob(), scan + "_fotos.zip");
+    msgEl.textContent = "Fotos baixadas.";
+  } catch (e) { msgEl.textContent = "Não foi possível baixar: " + e.message; }
+}
+$("dl-photos").addEventListener("click", () => viewScan && downloadPhotos(viewScan, $("dlmsg")));
+$("dl-stl").addEventListener("click", async () => {
+  if (!viewScan) return;
+  $("dlmsg").textContent = "Preparando o .stl…";
+  try {
+    const res = await api("/model.stl?scan=" + encodeURIComponent(viewScan));
+    if (!res.ok) throw new Error((await res.json()).error || "erro " + res.status);
+    saveBlob(await res.blob(), viewScan + ".stl");
+    $("dlmsg").textContent = ".stl baixado (em milímetros).";
+  } catch (e) { $("dlmsg").textContent = "Não foi possível baixar: " + e.message; }
+});
+
+// ---- 3D viewer (no libraries: flat-shaded triangles on a canvas) ---------------
+const V = { verts: null, faces: null, cx: 0, cy: 0, cz: 0, size: 1,
+            yaw: 0.6, pitch: 0.45, zoom: 1, spin: true, drag: null };
+const cv = $("view"), ctx = cv.getContext("2d");
+
+function parseObj(text) {
+  const verts = [], faces = [];
+  for (const line of text.split("\n")) {
+    if (line.startsWith("v ")) {
+      const p = line.trim().split(/\s+/);
+      verts.push([+p[1], +p[2], +p[3]]);
+    } else if (line.startsWith("f ")) {
+      const p = line.trim().split(/\s+/).slice(1).map((t) => parseInt(t, 10) - 1);
+      for (let k = 1; k + 1 < p.length; k++) faces.push([p[0], p[k], p[k + 1]]);   // fan, for quads
+    }
+  }
+  return { verts, faces };
+}
+
+async function loadModel(scan) {
+  $("dlmsg").textContent = "Carregando o modelo…";
+  try {
+    const res = await api("/model?scan=" + encodeURIComponent(scan));
+    if (!res.ok) throw new Error((await res.json()).error || "erro " + res.status);
+    const blob = await res.blob();
+    const text = await blob.text();
+    const m = parseObj(text);
+    if (!m.verts.length || !m.faces.length) throw new Error("o arquivo não tem pontos ou faces");
+    V.verts = m.verts; V.faces = m.faces; viewScan = scan;
+    let lo = [1e30, 1e30, 1e30], hi = [-1e30, -1e30, -1e30];
+    for (const v of V.verts) for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], v[i]); hi[i] = Math.max(hi[i], v[i]); }
+    V.cx = (lo[0] + hi[0]) / 2; V.cy = (lo[1] + hi[1]) / 2; V.cz = (lo[2] + hi[2]) / 2;
+    V.size = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1;
+    V.zoom = 1;
+    const link = $("dl-model");
+    if (link.dataset.url) URL.revokeObjectURL(link.dataset.url);
+    link.dataset.url = URL.createObjectURL(blob);
+    link.href = link.dataset.url;
+    link.download = scan + ".obj";
+    for (const id of ["dl-model", "dl-stl", "dl-photos", "spin"]) $(id).classList.remove("hidden");
+    $("viewhint").textContent = `${scan}: ${V.verts.length} pontos, ${V.faces.length} faces. ` +
+      `Tamanho: ${(hi[0] - lo[0]).toFixed(1)} × ${(hi[1] - lo[1]).toFixed(1)} × ${(hi[2] - lo[2]).toFixed(1)} mm. Arraste para girar.`;
+    $("dlmsg").textContent = "";
+    draw();
+  } catch (e) { $("dlmsg").textContent = "Não foi possível carregar o modelo: " + e.message; }
+}
+
+function draw() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  if (!V.verts) return;
+  const cy = Math.cos(V.yaw), sy = Math.sin(V.yaw), cp = Math.cos(V.pitch), sp = Math.sin(V.pitch);
+  const scale = Math.min(w, h) * 0.8 / V.size * V.zoom;
+  // rotate about the vertical axis (z of the model), then tilt; screen y points down
+  const P = new Array(V.verts.length);
+  for (let i = 0; i < V.verts.length; i++) {
+    const v = V.verts[i];
+    const x = v[0] - V.cx, y = v[1] - V.cy, z = v[2] - V.cz;
+    const x1 = x * cy - y * sy, y1 = x * sy + y * cy;            // yaw
+    // camera above and in front: viewer direction e = (0,-cp,sp), screen up u = (0,sp,cp)
+    const depth = y1 * cp - z * sp;                              // distance away from the viewer
+    const up = y1 * sp + z * cp;
+    P[i] = [w / 2 + x1 * scale, h / 2 - up * scale, depth, x1, y1, z];
+  }
+  const order = [];
+  for (let f = 0; f < V.faces.length; f++) {
+    const [a, b, c] = V.faces[f];
+    order.push([(P[a][2] + P[b][2] + P[c][2]) / 3, f]);
+  }
+  order.sort((p, q) => q[0] - p[0]);                              // far first
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  for (const [, f] of order) {
+    const [a, b, c] = V.faces[f];
+    const A = P[a], B = P[b], C = P[c];
+    // normal in the rotated frame (view-space cross product)
+    const ux = B[3] - A[3], uy = B[4] - A[4], uz = B[5] - A[5];
+    const vx = C[3] - A[3], vy = C[4] - A[4], vz = C[5] - A[5];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const len = Math.hypot(nx, ny, nz) || 1; nx /= len; ny /= len; nz /= len;
+    const toView = -ny * cp + nz * sp;                            // normal . viewer direction
+    if (toView < -0.02) continue;                                 // back face (the mesh is outward-facing)
+    // light: from the viewer's upper left, in the same frame
+    const L0 = [-0.4, 0.5 * sp - 0.8 * cp, 0.5 * cp + 0.8 * sp];
+    const ll = Math.hypot(L0[0], L0[1], L0[2]);
+    const lit = Math.max(0, (nx * L0[0] + ny * L0[1] + nz * L0[2]) / ll);
+    const shade = 0.3 + 0.7 * lit;
+    const base = dark ? [120, 170, 235] : [40, 110, 200];
+    const col = base.map((k) => Math.round(k * shade + (dark ? 0 : 30) * (1 - shade)));
+    ctx.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+    ctx.strokeStyle = ctx.fillStyle;
+    ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.lineTo(C[0], C[1]); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+  }
+}
+
+let last = 0;
+function frame(t) {
+  if (V.verts && V.spin && !V.drag && t - last > 30) { V.yaw += 0.01; last = t; draw(); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.addEventListener("resize", draw);
+
+cv.addEventListener("pointerdown", (e) => { cv.setPointerCapture(e.pointerId); V.drag = { x: e.clientX, y: e.clientY }; });
+cv.addEventListener("pointermove", (e) => {
+  if (!V.drag) return;
+  V.yaw += (e.clientX - V.drag.x) * 0.01;
+  V.pitch = Math.max(-1.3, Math.min(1.3, V.pitch + (e.clientY - V.drag.y) * 0.01));
+  V.drag = { x: e.clientX, y: e.clientY }; draw();
+});
+const endDrag = () => { V.drag = null; };
+cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
+cv.addEventListener("wheel", (e) => { e.preventDefault(); V.zoom = Math.max(0.3, Math.min(6, V.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1))); draw(); }, { passive: false });
+$("spin").addEventListener("click", () => { V.spin = !V.spin; $("spin").textContent = V.spin ? "Pausar rotação" : "Girar sozinho"; });
+
+// ---- tests of the laser and the camera ---------------------------------------
+const imgUrls = {};
+async function showTestPhoto(which, imgId) {
+  const res = await api("/test/photo/" + which + ".jpg");
+  if (!res.ok) throw new Error("sem foto");
+  if (imgUrls[which]) URL.revokeObjectURL(imgUrls[which]);
+  imgUrls[which] = URL.createObjectURL(await res.blob());
+  $(imgId).src = imgUrls[which];
+}
+async function runTest(kind) {
+  const tm = $("testmsg"); tm.className = "msg";
+  tm.textContent = kind === "laser" ? "O laser vai piscar 3 vezes (cerca de 6 s). Não olhe para o feixe." : "Tirando a foto de teste…";
+  $("testout").classList.add("hidden");
+  $("t-laser").disabled = true; $("t-photo").disabled = true;
+  try {
+    const res = await api("/test/" + kind, { method: "POST", body: JSON.stringify({ dry_run: $("dry").checked }) });
+    const ans = await jsonOrError(res);
+    tm.textContent = ans.ok ? (kind === "laser" ? "Teste terminado. O laser piscou 3 vezes?" : "Foto de teste feita.") : "O teste falhou. Veja o relatório abaixo.";
+    if (!ans.ok) tm.className = "msg bad";
+    $("report").textContent = ans.report || "";
+    $("testout").classList.remove("hidden");
+    $("report").classList.toggle("hidden", !ans.report);
+    $("testout").querySelector(".pair").classList.toggle("hidden", !ans.has_photos);
+    if (ans.has_photos) { await showTestPhoto("on", "img-on"); await showTestPhoto("off", "img-off"); }
+  } catch (e) { tm.textContent = e.message; tm.className = "msg bad"; }
+  poll();
+}
+$("t-laser").addEventListener("click", () => runTest("laser"));
+$("t-photo").addEventListener("click", () => runTest("photo"));
+
+// ---- old scans ----------------------------------------------------------------
+function niceName(name) {
+  const m = /^scan_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/.exec(name);
+  return m ? `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}:${m[6]}` : name;
+}
+function actButton(text, cls, fn, disabled) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = text; if (cls) b.className = cls; b.disabled = !!disabled;
+  b.addEventListener("click", fn); return b;
+}
+function renderScans(data) {
+  const box = $("scanlist"); box.textContent = "";
+  $("disk").textContent = `Espaço livre no Pi: ${(data.disk_free_mb / 1000).toFixed(1)} GB de ${(data.disk_total_mb / 1000).toFixed(1)} GB.`;
+  if (!data.scans.length) { const p = document.createElement("p"); p.className = "small"; p.textContent = "Nenhum scan guardado no Pi."; box.appendChild(p); return; }
+  for (const r of data.scans) {
+    const row = document.createElement("div"); row.className = "scan";
+    const left = document.createElement("div");
+    const nm = document.createElement("div"); nm.className = "name"; nm.textContent = niceName(r.scan);
+    const inf = document.createElement("div"); inf.className = "info";
+    const planned = r.photos_planned || r.photos_done;
+    let txt = r.running ? "em andamento" : (r.photos_done >= planned ? `${r.photos_done} fotos` : `incompleto (${r.photos_done} de ${planned} fotos)`);
+    txt += ` · ${r.size_mb} MB` + (r.has_model ? ` · modelo ${r.model_kb} KB` : " · sem modelo");
+    inf.textContent = txt; left.append(nm, inf);
+    const acts = document.createElement("div"); acts.className = "acts";
+    acts.appendChild(actButton("Ver", "", () => { loadModel(r.scan); cv.scrollIntoView({ behavior: "smooth", block: "center" }); }, !r.has_model || r.running));
+    acts.appendChild(actButton("Fotos", "", () => downloadPhotos(r.scan, $("listmsg")), r.running));
+    let armed = null;
+    const del = actButton("Apagar", "danger", async () => {
+      if (!armed) { armed = setTimeout(() => { armed = null; del.textContent = "Apagar"; }, 4000); del.textContent = "Confirmar apagar"; return; }
+      clearTimeout(armed); armed = null;
+      try { await jsonOrError(await api("/delete", { method: "POST", body: JSON.stringify({ scan: r.scan }) }));
+            if (viewScan === r.scan) { viewScan = null; V.verts = null; draw(); for (const id of ["dl-model", "dl-stl", "dl-photos", "spin"]) $(id).classList.add("hidden"); }
+            $("listmsg").textContent = "Scan apagado."; }
+      catch (e) { $("listmsg").textContent = "Não foi possível apagar: " + e.message; }
+      loadScans(); poll();
+    }, r.running);
+    acts.appendChild(del);
+    row.append(left, acts); box.appendChild(row);
+  }
+}
+async function loadScans() {
+  if (!$("token").value.trim()) return;
+  try { renderScans(await jsonOrError(await api("/scans"))); }
+  catch (e) { $("listmsg").textContent = "Não foi possível listar: " + e.message; }
+}
+$("refresh").addEventListener("click", loadScans);
+
+poll();
+</script>
+</body>
+</html>
