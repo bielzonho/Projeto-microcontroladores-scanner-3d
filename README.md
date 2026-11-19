@@ -22,7 +22,7 @@ Desenvolvimento de um scanner 3D com microcontroladores para digitalização de 
 1. **Calibração (`calibrate.py` / `plane_map.py`)** → Mede a escala em pixels/mm, o eixo de rotação e a perspectiva da câmera usando cilindros de referência, gerando `scanner_config.py` ou `camera_map.json`
 2. **Captura Automatizada (`capture.py`)** → Aciona o laser, captura um par de fotos (`on` e `off`) por ângulo e avança o motor de passo ao longo de uma volta completa (360°)
 3. **Detecção Sub-pixel (`detect_line.py`)** → Subtrai a imagem `OFF` da `ON` para cancelar a iluminação ambiente, encontra o centroide da linha do laser com precisão sub-pixel e converte pixels em coordenadas `(raio, altura)` em milímetros
-4. **Limpeza e Reconstrução (`cleanup.py` & `mesh.py`)** → Remove reflexos espúrios, interpola sombras ou falhas e gera a malha 3D fechada em `.obj` (e `.stl` via `export_stl.py`)
+4. **Limpeza e Reconstrução (`cleanup.py` & `mesh.py`)** → Remove reflexos falsos, interpola sombras ou falhas e gera a malha 3D fechada em `.obj` (e `.stl` via `export_stl.py`)
 
 ## Demonstração
 [Vídeo de demonstração do Scanner 3D](https://files.catbox.moe/27y6yo.mp4)
